@@ -19,7 +19,9 @@ void print2DArray(int arr[10][10]) {
    {
       for(int j = 0; j < 10; j++)
       {
-         //Print
+         if(arr[i][j] == 1){
+            printf("*");
+         }
       }
       printf("\n");
    }
