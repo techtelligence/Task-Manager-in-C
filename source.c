@@ -6,6 +6,10 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+//Constants
+
+#define INTERVALS 10
+
 //GLOBAL VARIABLES
 
 //Mutex
@@ -32,12 +36,21 @@ char execMem[] = "free -m | grep Mem | awk \'{printf(\"%0.1f\",$3/$2*100)}\'";
 //FUNCTIONS
 
 //Function to print a 2D graph from a given array of values
-void printGraph(int arr[10]){
-   for(int i = 9; i >= 0; i--)
-   {
-      printf("%d percent : ", ((i + 1) * 10));
+void printGraph(int arr[INTERVALS]){
 
-      for(int j = 0; j < 10; j++)
+   int len = 0;
+
+   for(int i = 10; i >= 0; i--)
+   {
+      if(i >= 10){
+         printf("%d %% : ", (i * 10));
+      }
+      else {
+         printf("%d %%  : ", (i * 10));
+      }
+      
+
+      for(int j = 0; j < INTERVALS; j++)
       {
          if(i == arr[j]){
             printf("*");
@@ -50,9 +63,9 @@ void printGraph(int arr[10]){
 }
 
 //Function to add a new value to the left into the array and shift everything right
-void shiftArrayRight(int arr[10], int newVal) {
+void shiftArrayRight(int arr[INTERVALS], int newVal) {
 
-   for(int i = 9; i > 0; i--) {
+   for(int i = (INTERVALS - 1); i > 0; i--) {
       arr[i] = arr[i - 1];
    }
 
@@ -61,23 +74,23 @@ void shiftArrayRight(int arr[10], int newVal) {
 }
 
 //Function to add a new value to the right into the array and shift everything left
-void shiftArrayLeft(int arr[10], int newVal) {
+void shiftArrayLeft(int arr[INTERVALS], int newVal) {
 
    int i = 0;
 
-   for(i = 0; i < 9; i++) {
+   for(i = 0; i < (INTERVALS - 1); i++) {
       arr[i] = arr[i + 1];
    }
 
-   arr[9] = newVal;
+   arr[INTERVALS - 1] = newVal;
 
 }
 
 //Function to print an array of 10 int values
-void printArray(int arr[10]){
+void printArray(int arr[INTERVALS]){
 
    printf("\n");
-   for(int i = 0; i < 10; i++) {
+   for(int i = 0; i < INTERVALS; i++) {
       printf(" %d ", arr[i]);
    }
    printf("\n");
