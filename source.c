@@ -11,21 +11,39 @@
 //Mutex
 pthread_mutex_t lock;
 
+//COMMANDS
+
+   //01 COMMANDS [ Get tasks ] : whoami | xargs top -b -n 1 -u | awk '{if(NR>7)printf "%-s %6s %-4s %-4s %-4s\n",$NF,$1,$9,$10,$2}' | sort -k X
+	//02 COMMANDS [ Get CPU% Usage ] : top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{printf("%0.1f",$1);}'	
+	//03 COMMANDS [ Get Mem% Usage ] : free -m | grep Mem | awk '{printf("%0.1f",$3/$2*100)}'
+
+
+//Get Tasks
+char execTasks[] = "whoami | xargs top -b -n 1 -u | awk '{if(NR>7)printf \"%-s %6s %-4s %-4s %-4s\n\",$NF,$1,$9,$10,$2}' | sort -k 1";
+
+//Get CPU % Usage
+char execCpu[] = "top -bn1 | grep \"Cpu(s)\" | sed \"s/.*, *\\([0-9.]*\\)%* id.*/\\1/\" | awk \'{printf(\"%0.1f\",100-$1);}\'";
+
+// Get Mem% Usage
+char execMem[] = "free -m | grep Mem | awk \'{printf(\"%0.1f\",$3/$2*100)}\'";
+
+
+
 //FUNCTIONS
 
-void print2DArray(int arr[10][10]) {
-
-   for(int i = 0; i < 10; i++)
+void printGraph(int val[10]){
+   for(int i = 9; i >= 0; i--)
    {
       for(int j = 0; j < 10; j++)
       {
-         if(arr[i][j] == 1){
+         if(i == val[j]){
             printf("*");
          }
+
+         printf("   ");
       }
       printf("\n");
    }
-
 }
 
 void *getMem(void *arg) {
@@ -56,14 +74,16 @@ int main(int argc, char *argv[]) {
    //Declaring variables
    int arg = 0;
 
+   //int vals[10] = {5, 7, 2, 4, 6, 7, 2, 3, 4, 5};
+   int vals[10] = {3, 4, 5, 4, 3, 7, 2, 3, 4, 5};
+   //int vals[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+
    //Defining Threads
    pthread_t memThread;
    pthread_t cpuThread;
    pthread_t IOThread;
    pthread_t bandwidthThread;
 
-   printf("Welcome to Task Manager !");
-   printf("\n");
 
    //CREATING THREADS
 
@@ -80,11 +100,18 @@ int main(int argc, char *argv[]) {
    pthread_create( &bandwidthThread, NULL,  getBandwidth , &arg);
 
 
-
-
    //In between Code goes here
 
+   /*        CODE START           */
 
+   printf("\t **** WELCOME TO TASK MANAGER **** \n");
+   printf("\n");
+
+   //Graph from array vals
+   printf("Printing Graph.. \n \n");
+   printGraph(vals);
+
+   /*        CODE END           */
 
 
    //JOINING THREADS
