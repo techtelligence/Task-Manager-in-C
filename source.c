@@ -31,12 +31,15 @@ char execMem[] = "free -m | grep Mem | awk \'{printf(\"%0.1f\",$3/$2*100)}\'";
 
 //FUNCTIONS
 
-void printGraph(int val[10]){
+//Function to print a 2D graph from a given array of values
+void printGraph(int arr[10]){
    for(int i = 9; i >= 0; i--)
    {
+      printf("%d percent : ", ((i + 1) * 10));
+
       for(int j = 0; j < 10; j++)
       {
-         if(i == val[j]){
+         if(i == arr[j]){
             printf("*");
          }
 
@@ -44,6 +47,41 @@ void printGraph(int val[10]){
       }
       printf("\n");
    }
+}
+
+//Function to add a new value to the left into the array and shift everything right
+void shiftArrayRight(int arr[10], int newVal) {
+
+   for(int i = 9; i > 0; i--) {
+      arr[i] = arr[i - 1];
+   }
+
+   arr[0] = newVal;
+
+}
+
+//Function to add a new value to the right into the array and shift everything left
+void shiftArrayLeft(int arr[10], int newVal) {
+
+   int i = 0;
+
+   for(i = 0; i < 9; i++) {
+      arr[i] = arr[i + 1];
+   }
+
+   arr[9] = newVal;
+
+}
+
+//Function to print an array of 10 int values
+void printArray(int arr[10]){
+
+   printf("\n");
+   for(int i = 0; i < 10; i++) {
+      printf(" %d ", arr[i]);
+   }
+   printf("\n");
+
 }
 
 void *getMem(void *arg) {
@@ -107,9 +145,32 @@ int main(int argc, char *argv[]) {
    printf("\t **** WELCOME TO TASK MANAGER **** \n");
    printf("\n");
 
+   //Printing array vals
+   printf("Printing the values in the array \n \n");
+   printArray(vals);
+
    //Graph from array vals
-   printf("Printing Graph.. \n \n");
+   printf("\n Printing Graph from values.. \n \n");
    printGraph(vals);
+
+   //Adding new val to right
+   printf("Adding a new value '2' to right shifting the array to left \n \n");
+   shiftArrayLeft(vals, 2);
+   printArray(vals);
+
+   //Graph from array vals
+   printf("\n Printing the Graph from new values.. \n \n");
+   printGraph(vals);
+
+   //Adding new val to left
+   printf("Adding a new value '5' to left shifting the array to right \n \n");
+   shiftArrayRight(vals, 5);
+   printArray(vals);
+
+   //Graph from array vals
+   printf("\n Printing the Graph from new values.. \n \n");
+   printGraph(vals);
+
 
    /*        CODE END           */
 
