@@ -5,4 +5,6 @@ int main() {
 	printf("Hello sahriq"); //change by shariq
 	printf("hello from Fozan"); //change by fozan
    return 0;
+   return 0;
+   
 }
