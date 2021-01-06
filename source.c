@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <math.h>
 
 //Constants
 
@@ -127,6 +128,8 @@ int main(int argc, char *argv[]) {
    //Initializing arrays
    int memVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
    int cpuVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+   int IOVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+   int bandVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
    //int vals[INTERVALS] = {5, 7, 2, 4, 6, 7, 2, 3, 4, 5};
    //int vals[INTERVALS] = {3, 4, 5, 4, 3, 7, 2, 3, 4, 5};
@@ -188,7 +191,11 @@ int main(int argc, char *argv[]) {
    printf("\n Printing the Graph from new values.. \n \n");
    printGraph(vals);
 
+   printf("\n \n");
+
    //Printing Commands
+
+   /*
 
    //ExecTasks
    printf("\n Printing the execTasks command \n \n");
@@ -204,6 +211,61 @@ int main(int argc, char *argv[]) {
    printf("\n Printing the execMem command \n \n");
    system(execMem);
    printf("\n \n");
+
+   */
+
+   //Storing commands in variable
+
+   FILE *fpipe;
+    char *command = execMem;
+    char value[10];
+
+    //char *command = "ls";
+
+    char c = 0;
+
+    if (0 == (fpipe = (FILE*)popen(command, "r")))
+    {
+        perror("popen() failed.");
+        exit(EXIT_FAILURE);
+    }
+
+   int k = 0;
+    while (fread(&c, sizeof c, 1, fpipe))
+    {
+        printf("%c", c);
+        value[k] = c;
+
+        k++;
+    }
+    value[k] = '\0';
+
+    pclose(fpipe);
+
+
+   printf("\n Printing value %s \n", value);
+
+   int iVal;
+   iVal = atoi(value);
+
+   double fVal;
+   fVal = strtof(value, NULL);
+
+   /*
+   int upperInt;
+   upperInt = ceil(fVal);
+
+   int lowerInt;
+   lowerInt = floor(fVal);
+   */
+
+   printf("\n Printing value in int %d \n", iVal);
+
+   printf("\n Printing value in float %f \n", fVal);
+
+   //printf("\n Printing value in Ceil Int %d \n", upperInt);
+
+   //printf("\n Printing value in Floor Int %d \n", lowerInt);
 
 
    /*        CODE END           */
@@ -223,6 +285,7 @@ int main(int argc, char *argv[]) {
    //Joinig bandwidthThread
    pthread_join(bandwidthThread, NULL);
 
+   printf("\n \n");
 
     return 0;
 
