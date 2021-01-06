@@ -21,7 +21,6 @@ pthread_mutex_t lock;
 	//02 COMMANDS [ Get CPU% Usage ] : top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{printf("%0.1f",$1);}'	
 	//03 COMMANDS [ Get Mem% Usage ] : free -m | grep Mem | awk '{printf("%0.1f",$3/$2*100)}'
 
-
 //Get Tasks
 char execTasks[] = "whoami | xargs top -b -n 1 -u | awk '{if(NR>7)printf \"%-s %6s %-4s %-4s %-4s\n\",$NF,$1,$9,$10,$2}' | sort -k 1";
 
@@ -125,9 +124,14 @@ int main(int argc, char *argv[]) {
    //Declaring variables
    int arg = 0;
 
-   //int vals[10] = {5, 7, 2, 4, 6, 7, 2, 3, 4, 5};
-   int vals[10] = {3, 4, 5, 4, 3, 7, 2, 3, 4, 5};
-   //int vals[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+   //Initializing arrays
+   int memVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+   int cpuVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+
+   //int vals[INTERVALS] = {5, 7, 2, 4, 6, 7, 2, 3, 4, 5};
+   //int vals[INTERVALS] = {3, 4, 5, 4, 3, 7, 2, 3, 4, 5};
+   //int vals[INTERVALS] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+   int vals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, 2, 3, 4};
 
    //Defining Threads
    pthread_t memThread;
@@ -183,6 +187,23 @@ int main(int argc, char *argv[]) {
    //Graph from array vals
    printf("\n Printing the Graph from new values.. \n \n");
    printGraph(vals);
+
+   //Printing Commands
+
+   //ExecTasks
+   printf("\n Printing the execTasks command \n \n");
+   system(execTasks);
+   printf("\n \n");
+
+   //ExecCpu
+   printf("\n Printing the execCpu command \n \n");
+   system(execCpu);
+   printf("\n \n");
+
+   //ExexMem
+   printf("\n Printing the execMem command \n \n");
+   system(execMem);
+   printf("\n \n");
 
 
    /*        CODE END           */
