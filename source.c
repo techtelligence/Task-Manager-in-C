@@ -29,7 +29,7 @@ pthread_mutex_t lock;
 	//03 COMMANDS [ Get Mem% Usage ] : free -m | grep Mem | awk '{printf("%0.1f",$3/$2*100)}'
 
 //Get Tasks
-char execTasks[] = "whoami | xargs top -b -n 1 -u | awk '{if(NR>7)printf \"%-s %6s %-4s %-4s %-4s\n\",$NF,$1,$9,$10,$2}' | sort -k 1";
+char execTasks[] = "whoami | xargs top  -b -n 1 -u | awk '{if(NR>7)printf \"%-s %6s %-4s %-4s %-4s\\n\",$NF,$1,$9,$10,$2}' | sort -k 1";
 
 //Get CPU % Usage
 char execCpu[] = "top -bn1 | grep \"Cpu(s)\" | sed \"s/.*, *\\([0-9.]*\\)%* id.*/\\1/\" | awk \'{printf(\"%0.1f\",100-$1);}\'";
@@ -206,6 +206,24 @@ void printCommandResult(char* passedCommand) {
 
 }
 
+// Thread function to get current tasks and update memVals array
+void *getTasks(void *arg) {
+
+
+   while(1) {
+     
+
+      printf("\n tasks Log: ");
+      system(execTasks);
+
+      sleep(1);
+	  system("clear");//Waiting for 1 second
+   }
+
+   pthread_exit(0);
+}
+
+
 // Thread function to get current memory usage and update memVals array
 void *getMem(void *arg) {
 
@@ -284,15 +302,16 @@ int main(int argc, char *argv[]) {
    pthread_t IOThread;
    pthread_t bandwidthThread;
    pthread_t renderThread;
+    pthread_t tasksThread;
 
-
+  system(execTasks);
    //CREATING THREADS
 
    //Creating memThread
    pthread_create( &memThread, NULL,  getMem , &arg);
 
    //Creating cpuThread
-   pthread_create( &cpuThread, NULL,  getCpu , &arg);
+  pthread_create( &cpuThread, NULL,  getCpu , &arg);
 
    //Creating IOThread
    pthread_create( &IOThread, NULL,  getIO , &arg);
@@ -303,6 +322,8 @@ int main(int argc, char *argv[]) {
    //Creating renderThread
    pthread_create( &renderThread, NULL,  renderScreen , &arg);
 
+//Creating tasksThread
+   pthread_create( &tasksThread, NULL,  getTasks , &arg);
 
    //In between Code goes here
 
@@ -325,7 +346,11 @@ int main(int argc, char *argv[]) {
    pthread_join(IOThread, NULL);
 
    //Joinig bandwidthThread
-   pthread_join(bandwidthThread, NULL);
+  pthread_join(bandwidthThread, NULL);
+
+
+//Joinig taskshread
+   pthread_join(tasksThread, NULL);
 
    printf("\n \n");
 
