@@ -13,6 +13,12 @@
 
 //GLOBAL VARIABLES
 
+//Initializing arrays
+   int memVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+   int cpuVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+   int IOVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+   int bandVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+
 //Mutex
 pthread_mutex_t lock;
 
@@ -45,6 +51,9 @@ void printGraph(int arr[INTERVALS]){
       if(i >= 10){
          printf("%d %% : ", (i * 10));
       }
+      else if(i == 0){
+         printf("%d %%   : ", (i * 10));
+      }
       else {
          printf("%d %%  : ", (i * 10));
       }
@@ -52,7 +61,7 @@ void printGraph(int arr[INTERVALS]){
 
       for(int j = 0; j < INTERVALS; j++)
       {
-         if(i == arr[j]){
+         if(i == (arr[j] / 10)){
             printf("*");
          }
 
@@ -97,26 +106,170 @@ void printArray(int arr[INTERVALS]){
 
 }
 
+//Function to return output of a command in float
+double commandToFloat (char* passedCommand) {
+
+    FILE *fpipe;
+    char *command = passedCommand;
+    char value[10];
+
+    char c = 0;
+
+    if (0 == (fpipe = (FILE*)popen(command, "r")))
+    {
+        perror("popen() failed.");
+        exit(EXIT_FAILURE);
+    }
+
+   int k = 0;
+    while (fread(&c, sizeof c, 1, fpipe))
+    {
+        value[k] = c;
+        k++;
+    }
+    value[k] = '\0';
+
+    pclose(fpipe);
+
+   double fVal;
+   fVal = strtof(value, NULL);
+
+   return fVal;
+}
+
+//Function to return output of a command in int
+int commandToInt (char* passedCommand) {
+
+    FILE *fpipe;
+    char *command = passedCommand;
+    char value[10];
+
+    char c = 0;
+
+    if (0 == (fpipe = (FILE*)popen(command, "r")))
+    {
+        perror("popen() failed.");
+        exit(EXIT_FAILURE);
+    }
+
+   int k = 0;
+    while (fread(&c, sizeof c, 1, fpipe))
+    {
+        value[k] = c;
+        k++;
+    }
+    value[k] = '\0';
+
+    pclose(fpipe);
+    
+   int iVal;
+   iVal = atoi(value);
+
+   return iVal;
+}
+
+//Function to return output of a command in String - NOT WORKING
+//BUGS TO FIX
+char* commandToString (char* passedCommand) {
+
+    FILE *fpipe;
+    char *command = passedCommand;
+    char *value;
+
+    char c = 0;
+
+    if (0 == (fpipe = (FILE*)popen(command, "r")))
+    {
+        perror("popen() failed.");
+        exit(EXIT_FAILURE);
+    }
+
+   int k = 0;
+    while (fread(&c, sizeof c, 1, fpipe))
+    {
+        value[k] = c;
+        k++;
+    }
+    value[k] = '\0';
+
+    pclose(fpipe);
+
+   return value;
+}
+
+//Function to print output of a command to console
+void printCommandResult(char* passedCommand) {
+
+   printf("\n \n");
+   system(passedCommand);
+   printf("\n \n");
+
+}
+
+// Thread function to get current memory usage and update memVals array
 void *getMem(void *arg) {
 
+   int mem;
+
+   while(1) {
+      mem = commandToInt(execMem);
+      shiftArrayLeft(memVals, mem);
+
+      //printf("\n Memory Log: ");
+      //printArray(memVals);
+
+      sleep(1); //Waiting for 1 second
+   }
+
    pthread_exit(0);
 }
 
+// Thread function to get current cpu usage and update cpuVals array
 void *getCpu(void *arg) {
 
+   int cpu;
+
+   while(1) {
+      cpu = commandToInt(execCpu);
+      shiftArrayLeft(cpuVals, cpu);
+
+      //printf("\n CPU Log: ");
+      //printArray(cpuVals);
+
+      sleep(1); //Waiting for 1 second
+   }
+
    pthread_exit(0);
 }
 
+// Thread function to get current IO usage and update IOVals array
 void *getIO(void *arg) {
 
    pthread_exit(0);
 }
 
+// Thread function to get current Bandwidth usage and update bandVals array
 void *getBandwidth(void *arg) {
 
    pthread_exit(0);
 }
 
+//Thread Function to render the screen
+void *renderScreen(void *arg) {
+
+   while(1) {
+      system("clear");
+      
+      printf("\n Memory Log: ");
+
+      printArray(memVals);
+      printGraph(memVals);
+
+      sleep(1);
+   }
+
+   pthread_exit(0);
+}
 
 //MAIN
 
@@ -125,22 +278,12 @@ int main(int argc, char *argv[]) {
    //Declaring variables
    int arg = 0;
 
-   //Initializing arrays
-   int memVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-   int cpuVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-   int IOVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-   int bandVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-
-   //int vals[INTERVALS] = {5, 7, 2, 4, 6, 7, 2, 3, 4, 5};
-   //int vals[INTERVALS] = {3, 4, 5, 4, 3, 7, 2, 3, 4, 5};
-   //int vals[INTERVALS] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-   int vals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, 2, 3, 4};
-
    //Defining Threads
    pthread_t memThread;
    pthread_t cpuThread;
    pthread_t IOThread;
    pthread_t bandwidthThread;
+   pthread_t renderThread;
 
 
    //CREATING THREADS
@@ -157,115 +300,14 @@ int main(int argc, char *argv[]) {
    //Creating bandwidthThread
    pthread_create( &bandwidthThread, NULL,  getBandwidth , &arg);
 
+   //Creating renderThread
+   pthread_create( &renderThread, NULL,  renderScreen , &arg);
+
 
    //In between Code goes here
 
    /*        CODE START           */
 
-   printf("\t **** WELCOME TO TASK MANAGER **** \n");
-   printf("\n");
-
-   //Printing array vals
-   printf("Printing the values in the array \n \n");
-   printArray(vals);
-
-   //Graph from array vals
-   printf("\n Printing Graph from values.. \n \n");
-   printGraph(vals);
-
-   //Adding new val to right
-   printf("Adding a new value '2' to right shifting the array to left \n \n");
-   shiftArrayLeft(vals, 2);
-   printArray(vals);
-
-   //Graph from array vals
-   printf("\n Printing the Graph from new values.. \n \n");
-   printGraph(vals);
-
-   //Adding new val to left
-   printf("Adding a new value '5' to left shifting the array to right \n \n");
-   shiftArrayRight(vals, 5);
-   printArray(vals);
-
-   //Graph from array vals
-   printf("\n Printing the Graph from new values.. \n \n");
-   printGraph(vals);
-
-   printf("\n \n");
-
-   //Printing Commands
-
-   /*
-
-   //ExecTasks
-   printf("\n Printing the execTasks command \n \n");
-   system(execTasks);
-   printf("\n \n");
-
-   //ExecCpu
-   printf("\n Printing the execCpu command \n \n");
-   system(execCpu);
-   printf("\n \n");
-
-   //ExexMem
-   printf("\n Printing the execMem command \n \n");
-   system(execMem);
-   printf("\n \n");
-
-   */
-
-   //Storing commands in variable
-
-   FILE *fpipe;
-    char *command = execMem;
-    char value[10];
-
-    //char *command = "ls";
-
-    char c = 0;
-
-    if (0 == (fpipe = (FILE*)popen(command, "r")))
-    {
-        perror("popen() failed.");
-        exit(EXIT_FAILURE);
-    }
-
-   int k = 0;
-    while (fread(&c, sizeof c, 1, fpipe))
-    {
-        printf("%c", c);
-        value[k] = c;
-
-        k++;
-    }
-    value[k] = '\0';
-
-    pclose(fpipe);
-
-
-   printf("\n Printing value %s \n", value);
-
-   int iVal;
-   iVal = atoi(value);
-
-   double fVal;
-   fVal = strtof(value, NULL);
-
-   /*
-   int upperInt;
-   upperInt = ceil(fVal);
-
-   int lowerInt;
-   lowerInt = floor(fVal);
-   */
-
-   printf("\n Printing value in int %d \n", iVal);
-
-   printf("\n Printing value in float %f \n", fVal);
-
-   //printf("\n Printing value in Ceil Int %d \n", upperInt);
-
-   //printf("\n Printing value in Floor Int %d \n", lowerInt);
 
 
    /*        CODE END           */
