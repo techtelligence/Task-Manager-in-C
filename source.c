@@ -7,6 +7,7 @@
 #include <semaphore.h>
 #include <math.h>
 #include <signal.h>
+#include <ctype.h>
 
 //Constants
 
@@ -43,7 +44,12 @@ int mode = 1; //For modes to display graph and logs
    double cpuVals[INTERVALS] = {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10};
    double memVals[INTERVALS] = {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10};
    double IOVals[INTERVALS] = {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10};
-   double bandVals[INTERVALS] = {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10};
+
+   double bandValsDown[INTERVALS] = {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10};
+   double bandValsUp[INTERVALS] = {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10};
+
+   double networkValsDown[INTERVALS] = {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10};
+   double networkValsUp[INTERVALS] = {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10};
 
    //Arrays to store graph intervals
    double graphInterMem[11] = {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
@@ -63,6 +69,10 @@ pthread_mutex_t lock;
    // command | head -n 1
    // ifconfig
    // nload
+   // vnstat --oneline
+
+   //To Compile
+   // gcc source.c -o source -pthread -lm
 
 //Get Tasks
 char execTasks[] = "whoami | xargs top -b -n 1 -u | awk '{if(NR>7)printf \"%-s %6s %-4s %-4s %-4s\\n\",$NF,$1,$9,$10,$2}' | sort -k 1 | head -n 10";
@@ -79,7 +89,9 @@ char execMem[] = "free -m | grep Mem | awk \'{printf(\"%0.1f\",$3/$2*100)}\'";
 char execIO[] = "iostat -dxy 2 1 /dev/sda | grep sda | awk  {\'print $14\'}";
 
 // Get Bandwidth % Usage
-char execBandwidth[] = "iostat -dxy 2 1 /dev/sda | grep sda | awk  {\'print $14\'}";
+char execBandwidth[] = "vnstat --oneline";
+
+char execNetwork[] = "top -bn1 | grep \"Cpu(s)\" | sed \"s/.*, *\\([0-9.]*\\)%* id.*/\\1/\" | awk \'{printf(\"%0.1f\",100-$1);}\'";
 
 
 
@@ -287,13 +299,12 @@ int commandToInt (char* passedCommand) {
    return iVal;
 }
 
-//Function to return output of a command in String - NOT WORKING
-//BUGS TO FIX
+//Function to return output of a command in String
 char* commandToString (char* passedCommand) {
 
     FILE *fpipe;
     char *command = passedCommand;
-    char *value;
+    char value[100000];
 
     char c = 0;
 
@@ -313,8 +324,72 @@ char* commandToString (char* passedCommand) {
 
     pclose(fpipe);
 
-   return value;
+   char* val = value;
+
+   return val;
 }
+
+
+//Function to get total Download network from vnstat --oneline command
+double vnStatDownFloat(char* output) {
+   char c = output[0];
+   int i = 0;
+   char delimeter = ';';
+   int delCount = 0;
+
+   char valueDown[10];
+
+   int k = 0;
+   
+   while(c != '\0') {
+      c = output[i];
+      if(c == delimeter){
+         delCount += 1;
+      }
+      if(delCount == 3 && (c != ';' && c != ' ' && isalpha(c) == 0)){
+         valueDown[k] = c;
+         ++k;
+      }
+      ++i;
+   }
+
+   valueDown[k] = '\0';
+
+   double val = atof(valueDown);
+
+   return val;
+}
+
+//Function to get total Upload network from vnstat --oneline command 
+double vnStatUpFloat(char* output) {
+   char c = output[0];
+   int i = 0;
+   char delimeter = ';';
+   int delCount = 0;
+
+   char valueUp[10];
+
+   int k = 0;
+   
+   while(c != '\0') {
+      c = output[i];
+      if(c == delimeter){
+         delCount += 1;
+      }
+      if(delCount == 4 && (c != ';' && c != ' ' && isalpha(c) == 0)){
+         valueUp[k] = c;
+         ++k;
+      }
+      ++i;
+   }
+
+   valueUp[k] = '\0';
+
+   double val = atof(valueUp);
+
+   return val;
+}
+
 
 //Function to print commands output to console
 void commandPrint(char* passedCommand) {
@@ -426,13 +501,24 @@ void *getIO(void *arg) {
 
 // Thread function to get current Bandwidth usage and update bandVals array
 void *getBandwidth(void *arg) {
-   double bandwidth;
+   double bandwidthDown;
+   double bandwidthUp;
+
+   char* s;
 
    while(1) {
-      bandwidth = commandToFloat(execBandwidth);
-      bandwidth = roundFloat(bandwidth);
 
-      shiftArrayLeft(bandVals, bandwidth);
+      s = commandToString(execBandwidth);
+
+      bandwidthDown = vnStatDownFloat(s);
+
+      bandwidthUp = vnStatUpFloat(s);
+
+      //printf("\n %s \n", s);
+      printf("Band Down: %f", bandwidthDown);
+
+      shiftArrayLeft(bandValsDown, bandwidthDown);
+      shiftArrayLeft(bandValsUp, bandwidthUp);
 
       //printf("\n Bandwidth Logs: ");
       //printArray(bandVals);
@@ -454,7 +540,7 @@ void *renderScreen(void *arg) {
       printf(" Current Memory Usage: %.1f %%", memVals[INTERVALS - 1]);
       printf("\t Current CPU Usage: %.1f %%", cpuVals[INTERVALS - 1]);
       printf("\n\n Current IO Usage: %.1f %%", IOVals[INTERVALS - 1]);
-      printf("\t Current Bandwidth Usage: %.1f %% \n", bandVals[INTERVALS - 1]);
+      printf("\t Current Bandwidth Usage: %.1f %% \n", bandValsDown[INTERVALS - 1]);
 
 
       //For Tasks Mode
@@ -491,9 +577,9 @@ void *renderScreen(void *arg) {
       else if(mode == 4) {
          printf("\n Bandwidth Logs: ");
          printf("\n");
-         printArray(bandVals);
+         printArray(bandValsDown);
          printf("\n");
-         printGraph(bandVals);
+         printGraph(bandValsDown);
       }
 
       printf("\n");
@@ -526,9 +612,12 @@ void handle_sigstop(int sig)
    mode = (mode + 1) % 5;
 } 
 
+
 //MAIN
 
 int main(int argc, char *argv[]) {
+
+   
 
    //Declaring variables
    int arg = 0;
@@ -591,6 +680,12 @@ int main(int argc, char *argv[]) {
 
    printf("\n \n");
 
-    return 0;
+
+/*
+
+   char* s = commandToString("nload");
+   printf("%s", s);
+*/
+   return 0;
 
 }
