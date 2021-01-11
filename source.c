@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <math.h>
+#include <signal.h>
 
 //Constants
 
@@ -13,13 +14,36 @@
 
 //GLOBAL VARIABLES
 
+int mode = 1; //For modes to display graph and logs
+
+// mode = 0 for List of Tasks
+// mode = 1 for CPU usage
+// mode = 2 for Memory usage
+// mode = 3 for IO usage
+// mode = 4 for Bandwidth usage
+
 //Initializing arrays
 
    //Arrays to store logs
-   double memVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+
+/*
+   double cpuVals[INTERVALS] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+   double memVals[INTERVALS] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+   double IOVals[INTERVALS] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+   double bandVals[INTERVALS] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+*/
+
+/*
    double cpuVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+   double memVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
    double IOVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
    double bandVals[INTERVALS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+*/
+
+   double cpuVals[INTERVALS] = {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10};
+   double memVals[INTERVALS] = {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10};
+   double IOVals[INTERVALS] = {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10};
+   double bandVals[INTERVALS] = {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10};
 
    //Arrays to store graph intervals
    double graphInterMem[11] = {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
@@ -30,19 +54,32 @@ pthread_mutex_t lock;
 //COMMANDS
 
    //01 COMMANDS [ Get tasks ] : whoami | xargs top -b -n 1 -u | awk '{if(NR>7)printf "%-s %6s %-4s %-4s %-4s\n",$NF,$1,$9,$10,$2}' | sort -k 1
-	//02 COMMANDS [ Get CPU% Usage ] : top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{printf("%0.1f",$1);}'	
-	//03 COMMANDS [ Get Mem% Usage ] : free -m | grep Mem | awk '{printf("%0.1f",$3/$2*100)}'
+	//02 COMMANDS [ Get CPU % Usage ] : top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{printf("%0.1f",$1);}'	
+	//03 COMMANDS [ Get Mem % Usage ] : free -m | grep Mem | awk '{printf("%0.1f",$3/$2*100)}'
+   //04 COMMANDS [ Get IO % Usage ] : iostat -dxy 2 1 /dev/sda | grep sda | awk  {'print $14'}
+   //05 COMMANDS [ Get Bandwidth % Usage ] : free -m | grep Mem | awk '{printf("%0.1f",$3/$2*100)}'
+
+
+   // command | head -n 1
+   // ifconfig
+   // nload
 
 //Get Tasks
-char execTasks[] = "whoami | xargs top -b -n 1 -u | awk '{if(NR>7)printf \"%-s %6s %-4s %-4s %-4s\\n\",$NF,$1,$9,$10,$2}' | sort -k 1";
+char execTasks[] = "whoami | xargs top -b -n 1 -u | awk '{if(NR>7)printf \"%-s %6s %-4s %-4s %-4s\\n\",$NF,$1,$9,$10,$2}' | sort -k 1 | head -n 10";
 
 //char execTasks[] = "whoami | xargs top -b -n 1 -u | awk '{if(NR>7)printf \"%%-s %6s %%-4s %%-4s %%-4s\n\",$NF,$1,$9,$10,$2}' | sort -k 1";
 
 //Get CPU % Usage
 char execCpu[] = "top -bn1 | grep \"Cpu(s)\" | sed \"s/.*, *\\([0-9.]*\\)%* id.*/\\1/\" | awk \'{printf(\"%0.1f\",100-$1);}\'";
 
-// Get Mem% Usage
+// Get Mem % Usage
 char execMem[] = "free -m | grep Mem | awk \'{printf(\"%0.1f\",$3/$2*100)}\'";
+
+// Get IO % Usage
+char execIO[] = "iostat -dxy 2 1 /dev/sda | grep sda | awk  {\'print $14\'}";
+
+// Get Bandwidth % Usage
+char execBandwidth[] = "iostat -dxy 2 1 /dev/sda | grep sda | awk  {\'print $14\'}";
 
 
 
@@ -59,8 +96,69 @@ double roundFloat(double var)
     return (double)value / 100; 
 } 
 
+//Function to round an Integer to closest 10s value
+int roundIntToTens(int val) {
+   if(val % 10 > 4) {
+      val = (val + 1) / 10;
+   }
+   else {
+      val = val / 10;
+   }
+
+   return val;
+
+}
+
+//Function to round an Integer to closest 10s value
+int roundFloatToTens(double value) {
+   int val = 0;
+   val = round(value);
+
+   if(val % 10 > 4) {
+      val = (val + 1) / 10;
+   }
+   else {
+      val = val / 10;
+   }
+
+   return val;
+
+}
+
 //Function to print a 2D graph from a given array of values
 void printGraph(double arr[INTERVALS]){
+
+   int val = 0;
+
+   for(int i = 10; i >= 0; i--)
+   {
+      if(i >= 10){
+         printf("%d %% : ", (i * 10));
+      }
+      else if(i == 0){
+         printf("%d %%   : ", (i * 10));
+      }
+      else {
+         printf("%d %%  : ", (i * 10));
+      }
+      
+
+      for(int j = 0; j < INTERVALS; j++)
+      {
+         val = roundFloatToTens(arr[j]);
+
+         if(i == val){
+            printf("*");
+         }
+
+         printf("   ");
+      }
+      printf("\n");
+   }
+}
+
+//Function to print a 2D graph for memory usage from a given array of values
+void printMemGraph(double arr[INTERVALS]){
 
    double temp = 0;
 
@@ -79,7 +177,6 @@ void printGraph(double arr[INTERVALS]){
       printf("\n");
    }
 }
-
   
 
 //Function to add a new value to the left into the array and shift everything right
@@ -111,7 +208,7 @@ void printArray(double arr[INTERVALS]){
 
    printf("\n");
    for(int i = 0; i < INTERVALS; i++) {
-      printf(" %f ", arr[i]);
+      printf(" %.1f ", arr[i]);
    }
    printf("\n");
 
@@ -310,12 +407,38 @@ void *getCpu(void *arg) {
 
 // Thread function to get current IO usage and update IOVals array
 void *getIO(void *arg) {
+   double IO;
+
+   while(1) {
+      IO = commandToFloat(execIO);
+      IO = roundFloat(IO);
+
+      shiftArrayLeft(IOVals, IO);
+
+      //printf("\n IO Logs: ");
+      //printArray(IOVals);
+
+      sleep(1); //Waiting for 1 second
+   }
 
    pthread_exit(0);
 }
 
 // Thread function to get current Bandwidth usage and update bandVals array
 void *getBandwidth(void *arg) {
+   double bandwidth;
+
+   while(1) {
+      bandwidth = commandToFloat(execBandwidth);
+      bandwidth = roundFloat(bandwidth);
+
+      shiftArrayLeft(bandVals, bandwidth);
+
+      //printf("\n Bandwidth Logs: ");
+      //printArray(bandVals);
+
+      sleep(1); //Waiting for 1 second
+   }
 
    pthread_exit(0);
 }
@@ -326,24 +449,82 @@ void *renderScreen(void *arg) {
    while(1) {
       system("clear");
 
-      printf("Current Memory Usage: %f %%", memVals[INTERVALS - 1]);
-      printf("\t Current CPU Usage: %f %% \n", cpuVals[INTERVALS - 1]);
-      printf("\n Memory Log: ");
+      printf("\t **** Press CTRL + \\ (SIGQUIT) to switch between logs **** \n \n");
 
-      printArray(memVals);
-      printGraph(memVals);
-
-      //system(execTasks);
+      printf(" Current Memory Usage: %.1f %%", memVals[INTERVALS - 1]);
+      printf("\t Current CPU Usage: %.1f %%", cpuVals[INTERVALS - 1]);
+      printf("\n\n Current IO Usage: %.1f %%", IOVals[INTERVALS - 1]);
+      printf("\t Current Bandwidth Usage: %.1f %% \n", bandVals[INTERVALS - 1]);
 
 
-      //printArray(cpuVals);
-      //printGraph(cpuVals);
+      //For Tasks Mode
+      if(mode == 0) {
+         printf("\n Running tasks.. (First 10):  \n \n");
+         system(execTasks);
+         printf("\n");
+      }
+      //For CPU mode
+      else if(mode == 1) {
+         printf("\n CPU Logs: ");
+         printf("\n");
+         printArray(cpuVals);
+         printf("\n");
+         printGraph(cpuVals);
+      }
+      //For Memory mode
+      else if(mode == 2) {
+         printf("\n Memory Logs: ");
+         printf("\n");
+         printArray(memVals);
+         printf("\n");
+         printGraph(memVals);
+      }
+      //For IO mode
+      else if(mode == 3) {
+         printf("\n IO Logs: ");
+         printf("\n");
+         printArray(IOVals);
+         printf("\n");
+         printGraph(IOVals);
+      }
+      //For Bandwidth mode
+      else if(mode == 4) {
+         printf("\n Bandwidth Logs: ");
+         printf("\n");
+         printArray(bandVals);
+         printf("\n");
+         printGraph(bandVals);
+      }
 
+      printf("\n");
       sleep(1);
    }
 
    pthread_exit(0);
 }
+
+//Signal Handler to handle SIGINT - 'CTRL' + 'C'
+void handle_sigint(int sig) 
+{
+   //Toggles mode between 0 - 4 
+   mode = (mode + 1) % 5;
+}
+
+//Signal Handler to handle SIGQUIT - 'CTRL' + '\'
+void handle_sigquit(int sig) 
+{
+   //Toggles mode between 1 - 4 
+   mode = (mode + 1) % 5;
+
+   mode == 0 ? mode = mode + 1: mode; //Skiping mode 0
+} 
+
+//Signal Handler to handle SIGTSTP - 'CTRL' + 'Z'
+void handle_sigstop(int sig) 
+{
+   //Toggles mode between 0 - 4 
+   mode = (mode + 1) % 5;
+} 
 
 //MAIN
 
@@ -360,6 +541,12 @@ int main(int argc, char *argv[]) {
    pthread_t renderThread;
    pthread_t updateGraphIntervThread;
 
+   //Handling Signals
+   
+   //signal(SIGINT, handle_sigint); // 'CTRL' + 'C'
+   signal(SIGQUIT, handle_sigquit); // 'CTRL' + '\'
+   //signal(SIGTSTP, handle_sigstop); // 'CTRL' + 'Z'
+   
 
    //CREATING THREADS
 
@@ -370,25 +557,16 @@ int main(int argc, char *argv[]) {
    pthread_create( &cpuThread, NULL,  getCpu , &arg);
 
    //Creating IOThread
-   //pthread_create( &IOThread, NULL,  getIO , &arg);
+   pthread_create( &IOThread, NULL,  getIO , &arg);
 
    //Creating bandwidthThread
-   //pthread_create( &bandwidthThread, NULL,  getBandwidth , &arg);
+   pthread_create( &bandwidthThread, NULL,  getBandwidth , &arg);
 
    //Creating updateGraphInterval thread
    pthread_create( &updateGraphIntervThread, NULL,  updateGraphInter , &arg);
 
    //Creating renderThread
    pthread_create( &renderThread, NULL,  renderScreen , &arg);
-
-
-   //In between Code goes here
-
-   /*        CODE START           */
-
-   
-
-   /*        CODE END           */
 
 
    //JOINING THREADS
@@ -400,10 +578,10 @@ int main(int argc, char *argv[]) {
    pthread_join(cpuThread, NULL);
 
    //Joinig IOThread
-   //pthread_join(IOThread, NULL);
+   pthread_join(IOThread, NULL);
 
    //Joinig bandwidthThread
-   //pthread_join(bandwidthThread, NULL);
+   pthread_join(bandwidthThread, NULL);
 
    //Joinig updateGraphIntervThread
    pthread_join(updateGraphIntervThread, NULL);
