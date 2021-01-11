@@ -4,10 +4,10 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <math.h>
 #include <signal.h>
 #include <ctype.h>
+#include <time.h>
 
 //Constants
 
@@ -16,6 +16,7 @@
 //GLOBAL VARIABLES
 
 int mode = 1; //For modes to display graph and logs
+
 
 // mode = 0 for List of Tasks
 // mode = 1 for CPU usage
@@ -91,7 +92,7 @@ char execIO[] = "iostat -dxy 2 1 /dev/sda | grep sda | awk  {\'print $14\'}";
 // Get Bandwidth % Usage
 char execBandwidth[] = "vnstat --oneline";
 
-char execNetwork[] = "top -bn1 | grep \"Cpu(s)\" | sed \"s/.*, *\\([0-9.]*\\)%* id.*/\\1/\" | awk \'{printf(\"%0.1f\",100-$1);}\'";
+//char execBandwidth[] = "traffic-get enp0s3 MiB 1 in";
 
 
 
@@ -514,9 +515,6 @@ void *getBandwidth(void *arg) {
 
       bandwidthUp = vnStatUpFloat(s);
 
-      //printf("\n %s \n", s);
-      printf("Band Down: %f", bandwidthDown);
-
       shiftArrayLeft(bandValsDown, bandwidthDown);
       shiftArrayLeft(bandValsUp, bandwidthUp);
 
@@ -532,16 +530,41 @@ void *getBandwidth(void *arg) {
 //Thread Function to render the screen
 void *renderScreen(void *arg) {
 
+   int num;
+   FILE *fptr;
+
+   time_t rawtime;
+   struct tm * timeinfo;
+
    while(1) {
       system("clear");
+
+      fptr = fopen("logs.txt","a");
+
+      if(fptr == NULL)
+   {
+      printf("Error!");   
+      exit(1);             
+   }
+
 
       printf("\t **** Press CTRL + \\ (SIGQUIT) to switch between logs **** \n \n");
 
       printf(" Current Memory Usage: %.1f %%", memVals[INTERVALS - 1]);
       printf("\t Current CPU Usage: %.1f %%", cpuVals[INTERVALS - 1]);
-      printf("\n\n Current IO Usage: %.1f %%", IOVals[INTERVALS - 1]);
-      printf("\t Current Bandwidth Usage: %.1f %% \n", bandValsDown[INTERVALS - 1]);
+      //printf("\t Current IO Usage: %.1f %%", IOVals[INTERVALS - 1]);
+      printf("\n\n Today's Bandwidth Download Usage: %.1f", bandValsDown[INTERVALS - 1]);
+      printf("\t Today's Bandwidth Upload Usage: %.1f \n", bandValsUp[INTERVALS - 1]);
 
+      //Writing to log file
+
+      time ( &rawtime );
+      timeinfo = localtime ( &rawtime );
+      fprintf(fptr," TIME : %s ", asctime (timeinfo)); 
+      fprintf(fptr," Current Memory Usage: %.1f %%", memVals[INTERVALS - 1]);
+      fprintf(fptr,"\t Current CPU Usage: %.1f %% ;\n\n", cpuVals[INTERVALS - 1]);
+
+      
 
       //For Tasks Mode
       if(mode == 0) {
@@ -567,24 +590,42 @@ void *renderScreen(void *arg) {
       }
       //For IO mode
       else if(mode == 3) {
-         printf("\n IO Logs: ");
+         printf("\n IO Stats: ");
          printf("\n");
-         printArray(IOVals);
-         printf("\n");
-         printGraph(IOVals);
+         //printArray(IOVals);
+         //printf("\n");
+         //printGraph(IOVals);
+         system("iostat | grep Device");
+         printf("\n\n");
+         system("iostat | grep sda");
       }
-      //For Bandwidth mode
+      //For Bandwidth Download mode
       else if(mode == 4) {
-         printf("\n Bandwidth Logs: ");
+         printf("\n Bandwidth Usage: ");
          printf("\n");
-         printArray(bandValsDown);
+         //printArray(bandValsDown);
+         //printf("\n");
+         //printGraph(bandValsDown);
+         system("vnstat -l");
          printf("\n");
-         printGraph(bandValsDown);
+      }
+      //For Bandwidth Upload mode
+      else if(mode == 5) {
+         printf("\n Bandwidth Upload Logs: ");
+         printf("\n");
+         printArray(bandValsUp);
+         printf("\n");
+         printGraph(bandValsUp);
       }
 
       printf("\n");
+
+      fclose(fptr);
+
       sleep(1);
    }
+
+   
 
    pthread_exit(0);
 }
@@ -612,13 +653,17 @@ void handle_sigstop(int sig)
    mode = (mode + 1) % 5;
 } 
 
+//Function to write to file
+void writeToFile(char* path) {
+
+   
+
+}
 
 //MAIN
 
 int main(int argc, char *argv[]) {
-
    
-
    //Declaring variables
    int arg = 0;
 
@@ -680,12 +725,6 @@ int main(int argc, char *argv[]) {
 
    printf("\n \n");
 
-
-/*
-
-   char* s = commandToString("nload");
-   printf("%s", s);
-*/
    return 0;
 
 }
